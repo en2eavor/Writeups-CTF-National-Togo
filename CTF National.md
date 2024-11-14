@@ -26,7 +26,10 @@ Voici la liste des challenges PWN qui ont été release :
 
 ### Attention !
 
-    Il s’agit d’un writeup, je ne tiens pas à faire un cours sur le PWN parce que je considère que c’est la compétence avec le plus de barrière à l’entrée parmi les types de challenges du format JEOPARDY, il se peut donc que certaines notions vous paraissent flou si vous n’avez pas le minimum requis. Si je devais expliquez chaque notion, je pense que j’écrirai un article de plusieurs pages et non un write-up.
+    Il s’agit d’un writeup, je ne tiens pas à faire un cours sur le PWN parce que je considère que c’est la compétence avec le plus de barrière 
+    à l’entrée parmi les types de challenges du format JEOPARDY, il se peut donc que certaines notions vous paraissent 
+    flou si vous n’avez pas le minimum requis. 
+    Si je devais expliquez chaque notion, je pense que j’écrirai un article de plusieurs pages et non un write-up.
 
 Malheureusement toutes les instances ont été stoppés, donc les challenges seront résolus en local.
 
