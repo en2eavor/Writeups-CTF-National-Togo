@@ -28,15 +28,19 @@ Voici la liste des challenges PWN qui ont été release :
 
     Il s’agit d’un writeup, je ne tiens pas à faire un cours sur le PWN parce que je considère que c’est la compétence avec le plus de barrière à l’entrée parmi les types de challenges du format JEOPARDY, il se peut donc que certaines notions vous paraissent flou si vous n’avez pas le minimum requis. Si je devais expliquez chaque notion, je pense que j’écrirai un article de plusieurs pages et non un write-up.
 
-Malheureusement toutes les instances ont été stoppés, donc les challenges seront résolus en local.
+Malheureusement toutes les instances ont été stoppés, donc les challenges seront résolus en local, je vais onc créer un fake flag qui sera : 
+
+`FLAG{********FLAG-REDACTED********}`
+
+Ce n'est pas le vrai flag des challenges car comme je l'ai dit, les instances ont été stoppés !
 
 #### isSet [ First Blood 🩸] :
 
 Le but principal d’un challenge PWN est d’exploiter des vulnérabilités liées à un binaire (exécutable) dans le but de détourner le programme de son but principal, et même obtenir un Shell distant.
 
-La première des choses est de voir à quel type de binaire nous avons affaire, avant de commencer assurer vous d’avoir la bibliothèque pwntools d’installer. Pour ce writeups, je n’utiliserai pas de scripts pwntools autogénéré pour que le code soit compréhensible par les moins habitués au challenge.
+La première des choses est de voir à quel type de binaire nous avons affaire, avant de commencer assurer vous d’avoir la bibliothèque pwntools d’installer. Pour ce writeups, je n’utiliserai pas de scripts pwntools autogénéré pour que le code soit compréhensible par les moins habitués aux challenges PWN.
 
-Nous avons un fichier qui accompagne le challenge, nous le télechargesons et pour commencer, nous devons savoir à quel type de fichier nous avons à faire avec la commande file :
+Nous avons un fichier qui accompagne le challenge, nous le télechargerons et pour commencer, nous devons savoir à quel type de fichier nous avons à faire avec la commande file :
 
 <img src="images/isset1.png" >
 
@@ -48,7 +52,7 @@ Avant de poursuivre, comme je l'ai dit le pwn consisite à exploiter des failles
 
 On a deux protections actives :
 - NX enabled : La stack n'est pas éxécutable
-- PIE enabled : Les adresses des fonctions dans le binaire sont rendomisés à chaque exécution
+- PIE enabled : Les adresses des fonctions dans le binaire sont randomisés (changés) à chaque exécution
 
 Essayons d'éxecuter le binaire pour voir comment il fonctionne :
 
@@ -371,6 +375,80 @@ $
 
 Ce challenge, j'ai été le seul à le solve, Le nom du challenge indique une protection assez connu dans le domaine du pwn que nous appelons l'ALSR. Au début du writeup, je vous ais parlé de certaines `mitigations` mis en place pour empecher l'exploitation des binaires.
 En randomisant l'emplacement des segments de mémoire (comme la pile, le tas, les bibliothèques partagées, et les exécutables) à chaque exécution d'un programme, l'ASLR empêche un attaquant de prédire où se trouvent ces segments en mémoire.
+
+Nous avons trois fichiers à notre disposition : 
+- aslr : le fichier binaire lui meme 
+- libc.so.6 : la libc utilisé par le binaire
+- ld-2.35.so : linker dynamique qui a pour role de chargé les différentes bibliothèques partagées
+
+Pour ne pas se préocuper de la version de la libc en remote, je vais donc patcher le binaire avec la libc. En utilisant `pwnint`
+
+```bash
+┌──(pwn_tools)─(en2eavor㉿en2eavor)-[/media/en2eavor/50c28130-290e-4b6e-897d-1e989bf6a7b6/nationalCTF]
+└─$ ./pwninit --bin aslr --ld ld-2.35.so --libc libc.so.6
+bin: aslr
+libc: libc.so.6
+ld: ld-2.35.so
+
+copying aslr to aslr_patched
+
+```
+
+On a donc au final le file : `aslr_patched`
+
+Nous le décompilons avec Ghidra pour mieux comprendre le fonctionnement du code :
+
+Voici la fonction `main`, qui fait appelle à la fonction `overflow()`
+
+```c
+undefined8 main(void)
+
+{
+  overflow();
+  return 0;
+}
+```
+
+Voici un apercçu de la fonction `overflow()`
+
+```c
+void overflow(void)
+
+{
+  char local_108 [256];
+  
+  memset(local_108,0,0x100);
+  puts("Hey, Tell me a story!?\n");
+  fflush(stdout);
+  read(0,local_108,0x1000);
+  puts("The story says ");
+  fflush(stdout);
+  puts(local_108);
+  return;
+}
+```
+
+La fonction fonctionne comme suit :
+- Un buffer de `256 bytes` est déclaré avec le nom `local_108`
+- Affiche le texte : `Hey, Tell me a story!?` grâce à la fonction `puts`
+- Lis notre entrée, mais en laissant l'utilisateur entrée 0x1000 caractères alors qu'on a un buffer de 256 bytes. Possibilité d'un bof
+- Affiche le texte : `The story says` grâce à la fonction `puts`
+
+En éxecutant un checksec sur le fichier binaire comme montré dans les précedents challs, remarquez que la protection NX est enabled ! Ce qui signifie qu'on ne peut pas juste éxecuter un shellcode. N'ayant pas de fonction éxecutant un shell pour nous, nous alons donc le faire nous meme en utilisant la technique du ROP chain.
+
+Mais le challenge se nommant ALSR, les adresses mémoires des bibliothèques sont changés à chaque éxecution du binaire (J'ai expliqué plus haut c'était quoi l'ALSRz). L'une des bibliothèques qui nous interesse est la la libc ( la bibliothèque ou sont définies les fonctions en C). Cette bibliothèque contient la fonction `system` et la chaine `/bin/sh`, toutes deux nécessaires pour avoir un shell, plus précsiement avoir `system('/bin/sh')`.
+
+`
+Mais il y'a une propriété fondamentale à retenir !
+Les offets entre les différentes fonctions d'une meme libc ne change JAMAIS
+`
+C'est à dire, si je prends la version `2.3` d'une libc par exemple et que l'écart entre la fonction `puts` et `system` est de `200` par exemple, peut importe le système sur lequel je serai et peu importe si l'ALSR est activé, l'écart (offset) entre ces deux fonctions restera toujours de `200` si j'ai la version `2.3` de la `libc`. C'est FONDAMENTALE.
+
+Il nous faut donc ici dans notre cas, trouver la base de l'adresse de la libc, c'est sur cette base là que nous retrouverons les autres fonctions si nous connaisons leur offset. En gros, si je sais que l'écart entre la base de la libc et la fonction `system` est de `500` sur mon sytème actuel, il me suffira donc d'ajouter `500` à la base de la libc du sytème pour tomber sur la fonction `system` !
+
+Si vous n'avez jamais fait du pwn, vous devez relire cette partie et faire des recherches pour mieux l'assimiler, comme je l'ai dit c'est un domaine assez difficile à appréhender !
+
+.... Le writeup sera fini bientot, mais si dessous le script !!
 
 ```python
 
