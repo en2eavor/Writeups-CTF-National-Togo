@@ -3,34 +3,19 @@ version: '3.8'
 services:
   vulnerable-app:
     build: .
-    container_name: vulnerable-platform
+    container_name: xss-rce-challenge
     ports:
       - "5000:5000"
     volumes:
-      # VULNERABILITY 1: Mount host filesystem (allows container escape)
-      - /:/host
-      # VULNERABILITY 2: Mount Docker socket (allows Docker API access from container)
+      # VULNERABILITY: Docker socket exposed (container escape vector)
       - /var/run/docker.sock:/var/run/docker.sock
-    # VULNERABILITY 3: Privileged mode (disables security features)
-    privileged: true
-    # VULNERABILITY 4: Disable security options
-    security_opt:
-      - seccomp:unconfined
-      - apparmor:unconfined
-    # VULNERABILITY 5: Add dangerous capabilities
-    cap_add:
-      - SYS_ADMIN
-      - SYS_PTRACE
-      - SYS_MODULE
-      - NET_ADMIN
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
-      - HOST_FLAG=FLAG{docker_escape_successful_you_are_now_on_host}
     restart: unless-stopped
     networks:
-      - vulnerable-net
+      - challenge-net
 
 networks:
-  vulnerable-net:
+  challenge-net:
     driver: bridge

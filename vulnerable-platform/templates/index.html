@@ -1,103 +1,146 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Board - XSS Challenge</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .message-card {
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .message-header {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .message-content {
+            color: #333;
+        }
+        .warning-banner {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .challenge-box {
+            background-color: #d1ecf1;
+            border: 2px solid #0c5460;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">🔓 XSS to RCE Challenge</a>
+        </div>
+    </nav>
 
-{% block title %}Home - Vulnerable Platform{% endblock %}
-
-{% block content %}
-<div class="jumbotron">
-    <h1 class="display-4">🔓 Welcome to the Vulnerable Web Platform</h1>
-    <p class="lead">A deliberately insecure web application for learning exploitation techniques</p>
-    <hr class="my-4">
-    
-    <div class="vulnerability-warning">
-        <h4>⚠️ Security Warning</h4>
-        <p><strong>This application contains INTENTIONAL security vulnerabilities!</strong></p>
-        <ul>
-            <li>DO NOT deploy this in any production environment</li>
-            <li>DO NOT expose this to the internet</li>
-            <li>Use only in isolated, controlled environments</li>
-            <li>For educational and testing purposes only</li>
-        </ul>
-    </div>
-
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card mb-3">
-                <div class="card-header bg-danger text-white">
-                    <h5>Vulnerabilities Included</h5>
+    <div class="container mt-4">
+        {% with messages_flash = get_flashed_messages(with_categories=true) %}
+            {% if messages_flash %}
+                {% for category, message in messages_flash %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
-                <div class="card-body">
-                    <ul>
-                        <li>SQL Injection (Login & Search)</li>
-                        <li>Cross-Site Scripting (XSS)</li>
-                        <li>Command Injection</li>
-                        <li>Unrestricted File Upload</li>
-                        <li>Path Traversal</li>
-                        <li>Broken Access Control</li>
-                        <li>Insecure Deserialization</li>
-                        <li>Docker Escape Scenarios</li>
-                    </ul>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="warning-banner">
+            <h4>⚠️ Educational Challenge Platform</h4>
+            <p><strong>This is a vulnerable application for learning purposes!</strong></p>
+            <p class="mb-0">Objective: Exploit XSS to achieve RCE, then escape Docker container to become root and capture the flag.</p>
+        </div>
+
+        <div class="challenge-box">
+            <h4>🎯 Challenge Path</h4>
+            <ol class="mb-0">
+                <li><strong>Step 1:</strong> Find and exploit the XSS vulnerability</li>
+                <li><strong>Step 2:</strong> Use XSS to achieve Remote Code Execution (RCE)</li>
+                <li><strong>Step 3:</strong> Get a reverse shell on the container</li>
+                <li><strong>Step 4:</strong> Exploit Docker socket exposure to escape container</li>
+                <li><strong>Step 5:</strong> Become root on the host system</li>
+                <li><strong>Step 6:</strong> Capture the flag in <code>/root/flag.txt</code></li>
+            </ol>
+        </div>
+
+        <h2>📝 Message Board</h2>
+        <p class="text-muted">Post messages and see what others have shared...</p>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Post a Message</h5>
+                <form method="POST" action="/post">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" 
+                               placeholder="Your name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="3" 
+                                  placeholder="Your message..." required></textarea>
+                        <small class="form-text text-muted">
+                            💡 Hint: Try including some HTML or JavaScript in your message...
+                        </small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Post Message</button>
+                </form>
+            </div>
+        </div>
+
+        <h3>💬 Messages</h3>
+        
+        {% if messages %}
+        <div class="messages-container">
+            {% for msg in messages %}
+            <div class="message-card">
+                <div class="message-header">{{ msg.username }}</div>
+                <div class="message-content">
+                    <!-- VULNERABLE: Direct rendering without sanitization -->
+                    {{ msg.message | safe }}
                 </div>
             </div>
+            {% endfor %}
         </div>
         
-        <div class="col-md-6">
-            <div class="card mb-3">
-                <div class="card-header bg-info text-white">
-                    <h5>Getting Started</h5>
-                </div>
-                <div class="card-body">
-                    <ol>
-                        <li><a href="{{ url_for('register') }}">Register</a> an account</li>
-                        <li>Try <a href="{{ url_for('login') }}">logging in</a> with SQL injection</li>
-                        <li>Explore the <a href="{{ url_for('search') }}">search</a> functionality</li>
-                        <li>Test the <a href="{{ url_for('ping') }}">ping tool</a></li>
-                        <li>Try <a href="{{ url_for('upload') }}">uploading files</a></li>
-                        <li>Escalate privileges to admin</li>
-                        <li>Exploit Docker to escape the container</li>
-                    </ol>
-                </div>
-            </div>
+        <form method="POST" action="/clear" class="mt-3">
+            <button type="submit" class="btn btn-warning btn-sm">Clear All Messages</button>
+        </form>
+        {% else %}
+        <div class="alert alert-info">
+            No messages yet. Be the first to post!
         </div>
-    </div>
+        {% endif %}
 
-    <div class="row mt-3">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5>🎯 Challenge Objectives</h5>
-                </div>
-                <div class="card-body">
-                    <p><strong>Capture the flags hidden throughout the platform:</strong></p>
-                    <ol>
-                        <li>Bypass login using SQL injection</li>
-                        <li>Extract database contents</li>
-                        <li>Gain admin access</li>
-                        <li>Execute commands on the server</li>
-                        <li>Upload a web shell</li>
-                        <li>Read sensitive files via path traversal</li>
-                        <li>Escape the Docker container</li>
-                        <li>Access the host system</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="mt-4">
-        <h3>Default Credentials</h3>
-        <div class="alert alert-secondary">
-            <p><strong>Test Accounts:</strong></p>
-            <ul class="mb-0">
-                <li>Admin: <code>admin / admin123</code></li>
-                <li>User: <code>user / password</code></li>
-                <li>Guest: <code>guest / guest123</code></li>
+        <div class="mt-5 p-3 bg-light rounded">
+            <h5>💡 Hints</h5>
+            <ul>
+                <li>The message board doesn't sanitize user input</li>
+                <li>JavaScript payloads will execute in other users' browsers</li>
+                <li>There's a hidden <code>/execute</code> endpoint that accepts POST requests with a <code>cmd</code> parameter</li>
+                <li>Once you have command execution, check your environment with <code>ls -la /var/run/</code></li>
+                <li>The Docker socket is your key to escaping the container</li>
             </ul>
-            <p class="mt-2 mb-0"><em>Or try bypassing authentication entirely... 😉</em></p>
         </div>
     </div>
 
-    <p class="mt-4">
-        <a class="btn btn-primary btn-lg" href="{{ url_for('login') }}" role="button">Start Exploiting →</a>
-    </p>
-</div>
-{% endblock %}
+    <footer class="mt-5 py-3 bg-light">
+        <div class="container text-center">
+            <p class="text-muted mb-0">⚠️ WARNING: Educational platform with intentional vulnerabilities!</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
