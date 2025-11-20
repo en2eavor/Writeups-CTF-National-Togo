@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Ping Tool{% endblock %}
+
+{% block content %}
+<h2>🏓 Network Ping Tool</h2>
+
+<div class="alert alert-danger">
+    <strong>⚠️ Command Injection Vulnerability!</strong>
+    <p class="mb-0">This tool executes commands without proper validation.</p>
+    <hr>
+    <small>
+        <strong>Try these payloads:</strong><br>
+        - <code>127.0.0.1; whoami</code><br>
+        - <code>127.0.0.1 && cat /etc/passwd</code><br>
+        - <code>127.0.0.1 | ls -la</code><br>
+        - <code>127.0.0.1; cat /proc/self/cgroup</code> (Check if in Docker)<br>
+        - <code>127.0.0.1; ls -la /.dockerenv</code> (Check Docker environment)
+    </small>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('ping') }}">
+            <div class="mb-3">
+                <label for="host" class="form-label">Host to Ping</label>
+                <input type="text" class="form-control" id="host" name="host" 
+                       placeholder="127.0.0.1" value="127.0.0.1">
+                <small class="form-text text-muted">Enter an IP address or hostname</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Ping</button>
+        </form>
+    </div>
+</div>
+
+{% if result %}
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h5>Command Output</h5>
+    </div>
+    <div class="card-body">
+        <pre class="mb-0">{{ result }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<div class="alert alert-info mt-4">
+    <strong>💡 Next Steps:</strong>
+    <ul class="mb-0">
+        <li>Confirm you're in a Docker container</li>
+        <li>Enumerate the container environment</li>
+        <li>Look for ways to escalate privileges</li>
+        <li>Check for Docker socket exposure</li>
+        <li>Attempt container escape</li>
+    </ul>
+</div>
+{% endblock %}

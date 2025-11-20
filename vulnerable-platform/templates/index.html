@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Vulnerable Platform{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+    <h1 class="display-4">🔓 Welcome to the Vulnerable Web Platform</h1>
+    <p class="lead">A deliberately insecure web application for learning exploitation techniques</p>
+    <hr class="my-4">
+    
+    <div class="vulnerability-warning">
+        <h4>⚠️ Security Warning</h4>
+        <p><strong>This application contains INTENTIONAL security vulnerabilities!</strong></p>
+        <ul>
+            <li>DO NOT deploy this in any production environment</li>
+            <li>DO NOT expose this to the internet</li>
+            <li>Use only in isolated, controlled environments</li>
+            <li>For educational and testing purposes only</li>
+        </ul>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-danger text-white">
+                    <h5>Vulnerabilities Included</h5>
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li>SQL Injection (Login & Search)</li>
+                        <li>Cross-Site Scripting (XSS)</li>
+                        <li>Command Injection</li>
+                        <li>Unrestricted File Upload</li>
+                        <li>Path Traversal</li>
+                        <li>Broken Access Control</li>
+                        <li>Insecure Deserialization</li>
+                        <li>Docker Escape Scenarios</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5>Getting Started</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li><a href="{{ url_for('register') }}">Register</a> an account</li>
+                        <li>Try <a href="{{ url_for('login') }}">logging in</a> with SQL injection</li>
+                        <li>Explore the <a href="{{ url_for('search') }}">search</a> functionality</li>
+                        <li>Test the <a href="{{ url_for('ping') }}">ping tool</a></li>
+                        <li>Try <a href="{{ url_for('upload') }}">uploading files</a></li>
+                        <li>Escalate privileges to admin</li>
+                        <li>Exploit Docker to escape the container</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5>🎯 Challenge Objectives</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Capture the flags hidden throughout the platform:</strong></p>
+                    <ol>
+                        <li>Bypass login using SQL injection</li>
+                        <li>Extract database contents</li>
+                        <li>Gain admin access</li>
+                        <li>Execute commands on the server</li>
+                        <li>Upload a web shell</li>
+                        <li>Read sensitive files via path traversal</li>
+                        <li>Escape the Docker container</li>
+                        <li>Access the host system</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h3>Default Credentials</h3>
+        <div class="alert alert-secondary">
+            <p><strong>Test Accounts:</strong></p>
+            <ul class="mb-0">
+                <li>Admin: <code>admin / admin123</code></li>
+                <li>User: <code>user / password</code></li>
+                <li>Guest: <code>guest / guest123</code></li>
+            </ul>
+            <p class="mt-2 mb-0"><em>Or try bypassing authentication entirely... 😉</em></p>
+        </div>
+    </div>
+
+    <p class="mt-4">
+        <a class="btn btn-primary btn-lg" href="{{ url_for('login') }}" role="button">Start Exploiting →</a>
+    </p>
+</div>
+{% endblock %}

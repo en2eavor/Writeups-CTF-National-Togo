@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Search{% endblock %}
+
+{% block content %}
+<h2>🔍 Search Posts</h2>
+
+<div class="alert alert-warning">
+    <strong>💉 SQL Injection Opportunity!</strong>
+    <p class="mb-0">The search functionality is vulnerable to SQL injection.</p>
+    <hr>
+    <small>
+        <strong>Try these payloads:</strong><br>
+        - <code>' UNION SELECT username, password, email, 1 FROM users--</code><br>
+        - <code>' OR '1'='1</code><br>
+        - <code>' UNION SELECT 1,2,3,4--</code>
+    </small>
+</div>
+
+<form method="GET" action="{{ url_for('search') }}" class="mb-4">
+    <div class="input-group">
+        <input type="text" class="form-control" name="q" value="{{ search_term }}" placeholder="Search for posts...">
+        <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+</form>
+
+{% if search_term %}
+<h3>Search Results for: "{{ search_term }}"</h3>
+
+{% if results %}
+<div class="list-group">
+    {% for result in results %}
+    <div class="list-group-item">
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ result[1] }}</h5>
+            <small>by {{ result[3] }}</small>
+        </div>
+        <p class="mb-1">{{ result[2] }}</p>
+        {% if result[0] %}
+        <a href="{{ url_for('view_post', post_id=result[0]) }}" class="btn btn-sm btn-primary">View Post</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">No results found.</div>
+{% endif %}
+{% endif %}
+{% endblock %}

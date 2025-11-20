@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Server Error{% endblock %}
+
+{% block content %}
+<div class="text-center mt-5">
+    <h1 class="display-1">500</h1>
+    <h2>Internal Server Error</h2>
+    <p class="lead">Something went wrong on our end.</p>
+    <p>This might be due to a vulnerability being exploited... 😉</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Go Home</a>
+</div>
+{% endblock %}

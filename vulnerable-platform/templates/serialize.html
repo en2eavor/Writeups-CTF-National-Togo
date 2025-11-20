@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Serialize{% endblock %}
+
+{% block content %}
+<h2>🔐 Object Serialization Tool</h2>
+
+<div class="alert alert-danger">
+    <strong>⚠️ Insecure Deserialization!</strong>
+    <p class="mb-0">This tool deserializes user input using Python's pickle module.</p>
+    <hr>
+    <small>
+        <strong>This is extremely dangerous!</strong> Pickle deserialization can lead to arbitrary code execution.
+    </small>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('serialize') }}">
+            <div class="mb-3">
+                <label for="data" class="form-label">Base64-encoded Serialized Data</label>
+                <textarea class="form-control" id="data" name="data" rows="5" 
+                          placeholder="Enter base64-encoded pickle data..."></textarea>
+                <small class="form-text text-muted">
+                    Enter base64-encoded pickle data to deserialize
+                </small>
+            </div>
+            <button type="submit" class="btn btn-primary">Deserialize</button>
+        </form>
+    </div>
+</div>
+
+{% if result %}
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h5>Result</h5>
+    </div>
+    <div class="card-body">
+        <pre class="mb-0">{{ result }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<div class="alert alert-info mt-4">
+    <strong>💡 Advanced Exploitation:</strong>
+    <p class="mb-0">Create a malicious pickle payload to execute arbitrary code on the server.</p>
+</div>
+{% endblock %}
