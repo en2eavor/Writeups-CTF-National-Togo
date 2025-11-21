@@ -1,0 +1,21 @@
+# Compiled binaries
+guess_game
+
+# Core dumps
+core
+core.*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# GDB files
+.gdb_history
+peda-session-*.txt
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
